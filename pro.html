@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <title>目標手帳 Pro - 個人每日目標與反思</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Noto Sans TC', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* 行動裝置極致體驗優化 */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      box-sizing: border-box;
+    }
+
+    /* 允許輸入框與可編輯區域正常選擇與輸入 */
+    input, textarea, [contenteditable="true"] {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      font-size: 16px !important; /* 防止 iOS Safari 自動放大 */
+    }
+
+    /* 按鈕觸控回饋效果 */
+    .active-scale {
+      transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.12s ease;
+    }
+    .active-scale:active {
+      transform: scale(0.95) !important;
+      opacity: 0.88 !important;
+    }
+
+    /* Safe Area 邊界適應 */
+    .pb-safe {
+      padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    }
+    .pt-safe {
+      padding-top: max(1rem, env(safe-area-inset-top));
+    }
+
+    /* 自訂滾動條隱藏但保持滾動 */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* 水波紋與卡片微光 */
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .light .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300 light:bg-slate-50 light:text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- 頂部 Safe Area 導覽列 -->
+  <header class="sticky top-0 z-30 pt-safe px-4 pb-3 bg-slate-900/80 light:bg-white/80 backdrop-blur-md border-b border-slate-800/80 light:border-slate-200">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-none tracking-wide text-slate-100 light:text-slate-900">目標手帳 <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 light:text-blue-600 ml-1">PRO</span></h1>
+          <p id="current-date-text" class="text-xs text-slate-400 light:text-slate-500 mt-0.5">2026年9月28日 星期一</p>
+        </div>
+      </div>
+
+      <!-- 右側按鈕區：主題切換與 PWA 安裝按鈕 -->
+      <div class="flex items-center gap-2">
+        <button id="pwa-install-btn" class="hidden active-scale p-2 rounded-xl bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs font-medium flex items-center gap-1 border border-blue-500/30">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          安裝
+        </button>
+        
+        <button id="theme-toggle-btn" class="active-scale p-2.5 rounded-xl bg-slate-800 light:bg-slate-100 text-slate-300 light:text-slate-600 border border-slate-700/50 light:border-slate-200">
+          <!-- Moon / Sun Icon JS 動態切換 -->
+          <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-md w-full mx-auto px-4 py-4 space-y-4 pb-28">
+
+    <!-- 今日進度與連續打卡卡片 -->
+    <section class="glass-card rounded-2xl p-4 shadow-xl relative overflow-hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="text-xs font-medium text-slate-400 light:text-slate-500 uppercase tracking-wider">今日完成度</span>
+          <div class="flex items-baseline gap-1 mt-0.5">
+            <span id="completion-percentage" class="text-2xl font-black text-slate-100 light:text-slate-900">0%</span>
+            <span id="completion-count" class="text-xs text-slate-400 light:text-slate-500">(0/0 目標)</span>
+          </div>
+        </div>
+
+        <!-- 連續打卡 Badge -->
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 light:text-orange-600">
+          <svg class="w-4 h-4 fill-orange-500 animate-pulse" viewBox="0 0 20 20">
+            <path d="M12.395 2.553a1 1 0 00-1.45-1.348c-1.891 2.025-3.02 4.226-3.02 6.015 0 2.21 1.79 4 4 4 2.21 0 4-1.79 4-4 0-1.298-.56-2.583-1.53-3.667a1 1 0 00-1.42 0c-.39.39-.39 1.02 0 1.41.45.45.95 1.15.95 2.25 0 1.1-.9 2-2 2s-2-.9-2-2c0-1.12.72-2.61 2.47-4.66z"/>
+          </svg>
+          <span class="text-xs font-bold"><span id="streak-days">0</span> 天連續</span>
+        </div>
+      </div>
+
+      <!-- 進度條 -->
+      <div class="w-full bg-slate-800 light:bg-slate-200 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700/50 light:border-slate-300/50">
+        <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500 ease-out w-0 shadow-sm"></div>
+      </div>
+    </section>
+
+    <!-- 分類篩選與操作列 -->
+    <section class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-1">
+      <div id="category-filter-container" class="flex items-center gap-1.5">
+        <!-- 分類按鈕由 JS 動態生成 -->
+      </div>
+      
+      <button id="open-journal-btn" class="active-scale shrink-0 text-xs font-medium px-3 py-1.5 rounded-xl bg-indigo-600/20 text-indigo-300 light:text-indigo-600 border border-indigo-500/30 flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+        今日反思
+      </button>
+    </section>
+
+    <!-- 目標卡片列表區 -->
+    <section id="goals-list" class="space-y-3">
+      <!-- 空狀態或卡片載入處 -->
+    </section>
+
+    <!-- 每日反思筆記摘要區域 (若有寫入) -->
+    <section id="journal-summary-card" class="hidden glass-card rounded-2xl p-4 border-l-4 border-l-indigo-500">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs font-semibold text-indigo-400 light:text-indigo-600 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          今日心得與反思
+        </span>
+        <button id="edit-journal-btn" class="text-xs text-slate-400 hover:text-slate-200">編輯</button>
+      </div>
+      <p id="journal-text-display" class="text-sm text-slate-300 light:text-slate-700 whitespace-pre-wrap leading-relaxed"></p>
+    </section>
+
+  </main>
+
+  <!-- 底部固定導覽/新增按鈕列 -->
+  <div class="fixed bottom-0 left-0 right-0 z-20 pb-safe bg-gradient-to-t from-slate-900 via-slate-900/90 to-transparent pointer-events-none">
+    <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-center pointer-events-auto">
+      <button id="open-add-modal-btn" class="active-scale w-full py-3.5 px-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 border border-blue-400/20">
+        <svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+        新增目標打卡
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: 新增/編輯目標 -->
+  <div id="goal-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
+    <div class="w-full max-w-md bg-slate-900 light:bg-white rounded-t-3xl sm:rounded-3xl border border-slate-800 light:border-slate-200 p-5 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 light:border-slate-200">
+        <h3 id="modal-title" class="text-base font-bold text-slate-100 light:text-slate-900">新增目標</h3>
+        <button id="close-modal-btn" class="active-scale p-1 rounded-full text-slate-400 hover:text-slate-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="goal-form" class="mt-4 space-y-4">
+        <input type="hidden" id="goal-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 light:text-slate-600 mb-1">目標名稱</label>
+          <input type="text" id="goal-title-input" required placeholder="例如：每日閱讀 20 頁、晨跑 30 分鐘..." 
+                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-100 light:text-slate-900 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 light:text-slate-600 mb-1">分類標籤</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button type="button" data-cat="健康" class="cat-select-btn active-scale py-2 rounded-xl text-xs font-medium border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 bg-slate-800 light:bg-slate-100">健康</button>
+            <button type="button" data-cat="學習" class="cat-select-btn active-scale py-2 rounded-xl text-xs font-medium border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 bg-slate-800 light:bg-slate-100">學習</button>
+            <button type="button" data-cat="工作" class="cat-select-btn active-scale py-2 rounded-xl text-xs font-medium border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 bg-slate-800 light:bg-slate-100">工作</button>
+            <button type="button" data-cat="生活" class="cat-select-btn active-scale py-2 rounded-xl text-xs font-medium border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 bg-slate-800 light:bg-slate-100">生活</button>
+          </div>
+          <input type="hidden" id="goal-category-input" value="健康">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 light:text-slate-600 mb-1">提示與備註（選填）</label>
+          <input type="text" id="goal-note-input" placeholder="例如：早上 8:00 前完成" 
+                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-100 light:text-slate-900 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div class="pt-2 flex gap-3">
+          <button type="button" id="delete-goal-btn" class="hidden active-scale px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold">刪除</button>
+          <button type="submit" class="flex-1 active-scale py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md shadow-blue-500/20">儲存目標</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: 每日反思筆記手帳 -->
+  <div id="journal-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
+    <div class="w-full max-w-md bg-slate-900 light:bg-white rounded-t-3xl sm:rounded-3xl border border-slate-800 light:border-slate-200 p-5 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 light:border-slate-200">
+        <h3 class="text-base font-bold text-slate-100 light:text-slate-900 flex items-center gap-1.5">
+          <span>✍️</span> 今日打卡與反思手帳
+        </h3>
+        <button id="close-journal-modal-btn" class="active-scale p-1 rounded-full text-slate-400 hover:text-slate-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <p class="text-xs text-slate-400 light:text-slate-500">記錄今天的收穫、心情或是改進方向，讓每天都有跡可循：</p>
+        <textarea id="journal-input" rows="5" placeholder="今天完成目標的心得、遇到的挑戰或是感謝的事物..." 
+                  class="w-full p-3 rounded-xl bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"></textarea>
+        
+        <button id="save-journal-btn" class="w-full active-scale py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md shadow-indigo-500/20">
+          儲存今日反思
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas 用於完成全項目打卡時的灑花動畫效果 -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <script>
+    // ==========================================
+    // 1. PWA 技術規範設定：SVG Icon, Manifest & Service Worker Blob
+    // ==========================================
+
+    // 極簡色彩鮮明 Checkmark SVG Icon -> Data URI
+    const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" rx="128" fill="#2563eb"/><path d="M140 256l80 80 152-160" fill="none" stroke="#ffffff" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const appIconDataUrl = `data:image/svg+xml;base64,${btoa(appIconSvg)}`;
+
+    // 自動設置 Favicon & Apple Touch Icon
+    const faviconLink = document.createElement('link');
+    faviconLink.rel = 'icon';
+    faviconLink.href = appIconDataUrl;
+    document.head.appendChild(faviconLink);
+
+    const appleIconLink = document.createElement('link');
+    appleIconLink.rel = 'apple-touch-icon';
+    appleIconLink.href = appIconDataUrl;
+    document.head.appendChild(appleIconLink);
+
+    // 動態建構 Manifest 物件並轉換為 Blob URL 載入
+    const manifestObject = {
+      name: "目標手帳 Pro",
+      short_name: "目標手帳",
+      description: "個人每日目標打卡與反思手帳 PWA",
+      start_url: "./",
+      display: "standalone",
+      background_color: "#0f172a",
+      theme_color: "#2563eb",
+      icons: [
+        {
+          src: appIconDataUrl,
+          sizes: "512x512",
+          type: "image/svg+xml",
+          purpose: "any maskable"
+        }
+      ]
+    };
+
+    const manifestBlob = new Blob([JSON.stringify(manifestObject)], { type: 'application/json' });
+    const manifestUrl = URL.createObjectURL(manifestBlob);
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = manifestUrl;
+    document.head.appendChild(manifestLink);
+
+    // 動態建構內聯 Service Worker 代碼，實現離線資源 Cache 處理
+    const serviceWorkerCode = `
+      const CACHE_NAME = 'goal-tracker-v1';
+      self.addEventListener('install', (e) => {
+        self.skipWaiting();
+      });
+      self.addEventListener('activate', (e) => {
+        e.waitUntil(clients.claim());
+      });
+      self.addEventListener('fetch', (e) => {
+        // 快取優先策略
+        e.respondWith(
+          caches.match(e.request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            return fetch(e.request).then((response) => {
+              if (!response || response.status !== 200 || response.type !== 'basic') {
+                return response;
+              }
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(e.request, responseToCache);
+              });
+              return response;
+            }).catch(() => cachedResponse);
+          })
+        );
+      });
+    `;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        try {
+          const swBlob = new Blob([serviceWorkerCode], { type: 'text/javascript' });
+          const swUrl = URL.createObjectURL(swBlob);
+          navigator.serviceWorker.register(swUrl).then(() => {
+            console.log('PWA Service Worker 註冊成功！');
+          }).catch(err => console.log('SW 註冊忽略:', err));
+        } catch (e) {
+          console.warn('Blob SW 未受當前環境全面支援');
+        }
+      });
+    }
+
+    // PWA 安裝事件監聽
+    let deferredPrompt;
+    const installBtn = document.getElementById('pwa-install-btn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          installBtn.classList.add('hidden');
+        }
+        deferredPrompt = null;
+      }
+    });
+
+    // ==========================================
+    // 2. 音效與動畫輔助工具 (Web Audio API & Canvas Confetti)
+    // ==========================================
+
+    // 使用 Web Audio API 播報輕快打卡音效 (不依靠外部音檔)
+    function playCheckSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.12); // A5
+
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {}
+    }
+
+    // 五彩灑花慶祝動畫
+    function triggerConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#3b82f6', '#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+
+      for (let i = 0; i < 60; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.7) * 12,
+          size: Math.random() * 6 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          gravity: 0.25,
+          alpha: 1
+        });
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let activeParticles = 0;
+
+        particles.forEach(p => {
+          if (p.alpha <= 0) return;
+          activeParticles++;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.alpha -= 0.015;
+
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        if (activeParticles > 0) {
+          requestAnimationFrame(render);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      render();
+    }
+
+    // ==========================================
+    // 3. 核心 State 狀態與資料處理 (LocalStorage)
+    // ==========================================
+
+    const STORAGE_KEY_GOALS = 'goal_tracker_goals_v2';
+    const STORAGE_KEY_JOURNALS = 'goal_tracker_journals_v2';
+    const STORAGE_KEY_STREAK = 'goal_tracker_streak_v2';
+
+    // 取得今天 YYYY-MM-DD 格式字串
+    function getTodayKey() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // 預設示範目標
+    const defaultGoals = [
+      { id: '1', title: '喝足 2000cc 水', category: '健康', note: '多喝水維持專注', completedDates: [] },
+      { id: '2', title: '閱讀或學習 30 分鐘', category: '學習', note: '充實自我知識', completedDates: [] },
+      { id: '3', title: '整理工作與今日待辦', category: '工作', note: '安排優先順序', completedDates: [] }
+    ];
+
+    let state = {
+      goals: JSON.parse(localStorage.getItem(STORAGE_KEY_GOALS)) || defaultGoals,
+      journals: JSON.parse(localStorage.getItem(STORAGE_KEY_JOURNALS)) || {},
+      streak: JSON.parse(localStorage.getItem(STORAGE_KEY_STREAK)) || { count: 0, lastCheckDate: '' },
+      selectedCategory: '全部'
+    };
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY_GOALS, JSON.stringify(state.goals));
+      localStorage.setItem(STORAGE_KEY_JOURNALS, JSON.stringify(state.journals));
+      localStorage.setItem(STORAGE_KEY_STREAK, JSON.stringify(state.streak));
+    }
+
+    // 更新與檢查連續打卡天數
+    function updateStreak() {
+      const today = getTodayKey();
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
+
+      // 檢查今天是否有完成至少一項目標
+      const hasCompletedToday = state.goals.some(g => g.completedDates && g.completedDates.includes(today));
+
+      if (hasCompletedToday) {
+        if (state.streak.lastCheckDate === today) {
+          // 今天已經計算過
+        } else if (state.streak.lastCheckDate === yesterday) {
+          // 昨天有做，今天繼續累加
+          state.streak.count += 1;
+          state.streak.lastCheckDate = today;
+        } else {
+          // 重置為 1 天
+          state.streak.count = 1;
+          state.streak.lastCheckDate = today;
+        }
+      } else {
+        // 如果今天尚未打卡且上次打卡不是昨天與今天，代表斷掉了
+        if (state.streak.lastCheckDate !== today && state.streak.lastCheckDate !== yesterday) {
+          state.streak.count = 0;
+        }
+      }
+      saveState();
+    }
+
+    // ==========================================
+    // 4. UI 渲染畫面邏輯
+    // ==========================================
+
+    const categoryColors = {
+      '健康': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 light:text-emerald-600',
+      '學習': 'bg-blue-500/10 text-blue-400 border-blue-500/20 light:text-blue-600',
+      '工作': 'bg-purple-500/10 text-purple-400 border-purple-500/20 light:text-purple-600',
+      '生活': 'bg-amber-500/10 text-amber-400 border-amber-500/20 light:text-amber-600',
+    };
+
+    function renderUI() {
+      const today = getTodayKey();
+      updateStreak();
+
+      // 1. 顯示日期
+      const now = new Date();
+      const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+      document.getElementById('current-date-text').textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${days[now.getDay()]}`;
+
+      // 2. 顯示連續天數
+      document.getElementById('streak-days').textContent = state.streak.count;
+
+      // 3. 計算今日完成度
+      const totalGoals = state.goals.length;
+      const completedTodayCount = state.goals.filter(g => g.completedDates && g.completedDates.includes(today)).length;
+      const percentage = totalGoals === 0 ? 0 : Math.round((completedTodayCount / totalGoals) * 100);
+
+      document.getElementById('completion-percentage').textContent = `${percentage}%`;
+      document.getElementById('completion-count').textContent = `(${completedTodayCount}/${totalGoals} 目標)`;
+      document.getElementById('progress-bar').style.width = `${percentage}%`;
+
+      // 4. 渲染分類篩選按鈕
+      renderCategoryFilters();
+
+      // 5. 渲染目標卡片列表
+      const goalsList = document.getElementById('goals-list');
+      goalsList.innerHTML = '';
+
+      const filteredGoals = state.selectedCategory === '全部' 
+        ? state.goals 
+        : state.goals.filter(g => g.category === state.selectedCategory);
+
+      if (filteredGoals.length === 0) {
+        goalsList.innerHTML = `
+          <div class="text-center py-10 glass-card rounded-2xl border border-dashed border-slate-700/60 light:border-slate-300">
+            <p class="text-3xl mb-2">🎯</p>
+            <p class="text-sm font-medium text-slate-300 light:text-slate-700">尚無目標項目</p>
+            <p class="text-xs text-slate-500 mt-1">點擊下方按鈕開始新增您的第一個打卡目標！</p>
+          </div>
+        `;
+      } else {
+        filteredGoals.forEach(goal => {
+          const isDoneToday = goal.completedDates && goal.completedDates.includes(today);
+          const badgeClass = categoryColors[goal.category] || categoryColors['生活'];
+
+          const card = document.createElement('div');
+          card.className = `glass-card rounded-2xl p-4 flex items-center justify-between transition-all duration-200 ${
+            isDoneToday ? 'opacity-75 bg-slate-800/40 light:bg-slate-100/50' : ''
+          }`;
+
+          card.innerHTML = `
+            <div class="flex items-center gap-3.5 flex-1 min-w-0 pr-2">
+              <!-- 打卡 Toggle 按鈕 -->
+              <button onclick="toggleGoalCheck('${goal.id}')" class="active-scale shrink-0 w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 ${
+                isDoneToday 
+                  ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 border-transparent text-white shadow-md shadow-blue-500/30' 
+                  : 'border-slate-600 light:border-slate-300 hover:border-blue-500'
+              }">
+                ${isDoneToday ? '<svg class="w-5 h-5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>' : ''}
+              </button>
+
+              <div class="flex-1 min-w-0 cursor-pointer" onclick="openEditGoalModal('${goal.id}')">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClass}">${goal.category}</span>
+                  <h3 class="font-bold text-sm text-slate-100 light:text-slate-900 truncate ${isDoneToday ? 'line-through text-slate-400 light:text-slate-500' : ''}">
+                    ${escapeHtml(goal.title)}
+                  </h3>
+                </div>
+                ${goal.note ? `<p class="text-xs text-slate-400 light:text-slate-500 truncate">${escapeHtml(goal.note)}</p>` : ''}
+              </div>
+            </div>
+
+            <!-- 編輯 Icon -->
+            <button onclick="openEditGoalModal('${goal.id}')" class="active-scale p-1.5 text-slate-500 hover:text-slate-300 light:hover:text-slate-700">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 210.5H3v-3.5L16.732 3.732z"></path></svg>
+            </button>
+          `;
+          goalsList.appendChild(card);
+        });
+      }
+
+      // 6. 渲染今日反思筆記摘要
+      const todayJournal = state.journals[today];
+      const journalSummaryCard = document.getElementById('journal-summary-card');
+      if (todayJournal && todayJournal.trim()) {
+        document.getElementById('journal-text-display').textContent = todayJournal;
+        journalSummaryCard.classList.remove('hidden');
+      } else {
+        journalSummaryCard.classList.add('hidden');
+      }
+    }
+
+    // 分類篩選列渲染
+    function renderCategoryFilters() {
+      const categories = ['全部', '健康', '學習', '工作', '生活'];
+      const container = document.getElementById('category-filter-container');
+      container.innerHTML = '';
+
+      categories.forEach(cat => {
+        const isActive = state.selectedCategory === cat;
+        const btn = document.createElement('button');
+        btn.className = `active-scale text-xs px-3 py-1.5 rounded-xl font-medium border transition-all ${
+          isActive 
+            ? 'bg-blue-600 text-white border-blue-500 shadow-sm shadow-blue-500/30' 
+            : 'bg-slate-800/80 light:bg-slate-200/80 text-slate-300 light:text-slate-700 border-slate-700/60 light:border-slate-300'
+        }`;
+        btn.textContent = cat;
+        btn.onclick = () => {
+          state.selectedCategory = cat;
+          renderUI();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    // 安全的 HTML 轉義防止 XSS
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // ==========================================
+    // 5. 事件處理 (打卡、 Modal 操作與主題切換)
+    // ==========================================
+
+    // 切換目標打卡狀態
+    window.toggleGoalCheck = function(id) {
+      const today = getTodayKey();
+      const goal = state.goals.find(g => g.id === id);
+      if (!goal) return;
+
+      if (!goal.completedDates) goal.completedDates = [];
+
+      const index = goal.completedDates.indexOf(today);
+      if (index > -1) {
+        // 取消打卡
+        goal.completedDates.splice(index, 1);
+      } else {
+        // 完成打卡
+        goal.completedDates.push(today);
+        playCheckSound();
+
+        // 檢查是否全部目標都完成，若是則觸發慶祝灑花
+        const allCompleted = state.goals.every(g => g.completedDates && g.completedDates.includes(today));
+        if (allCompleted) {
+          triggerConfetti();
+        }
+      }
+
+      saveState();
+      renderUI();
+    };
+
+    // Modal 元素 reference
+    const goalModal = document.getElementById('goal-modal');
+    const goalForm = document.getElementById('goal-form');
+    const deleteBtn = document.getElementById('delete-goal-btn');
+
+    // 開啟新增 Modal
+    document.getElementById('open-add-modal-btn').onclick = () => {
+      document.getElementById('modal-title').textContent = '新增目標';
+      document.getElementById('goal-id').value = '';
+      document.getElementById('goal-title-input').value = '';
+      document.getElementById('goal-note-input').value = '';
+      setCategorySelect('健康');
+      deleteBtn.classList.add('hidden');
+      openModal(goalModal);
+    };
+
+    // 開啟編輯 Modal
+    window.openEditGoalModal = function(id) {
+      const goal = state.goals.find(g => g.id === id);
+      if (!goal) return;
+
+      document.getElementById('modal-title').textContent = '編輯目標';
+      document.getElementById('goal-id').value = goal.id;
+      document.getElementById('goal-title-input').value = goal.title;
+      document.getElementById('goal-note-input').value = goal.note || '';
+      setCategorySelect(goal.category || '健康');
+      deleteBtn.classList.remove('hidden');
+      openModal(goalModal);
+    };
+
+    // 分類選擇按鈕切換
+    const catBtns = document.querySelectorAll('.cat-select-btn');
+    function setCategorySelect(selectedCat) {
+      document.getElementById('goal-category-input').value = selectedCat;
+      catBtns.forEach(btn => {
+        if (btn.dataset.cat === selectedCat) {
+          btn.className = 'cat-select-btn active-scale py-2 rounded-xl text-xs font-bold border border-blue-500 bg-blue-600 text-white shadow-sm';
+        } else {
+          btn.className = 'cat-select-btn active-scale py-2 rounded-xl text-xs font-medium border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 bg-slate-800 light:bg-slate-100';
+        }
+      });
+    }
+
+    catBtns.forEach(btn => {
+      btn.onclick = () => setCategorySelect(btn.dataset.cat);
+    });
+
+    // 儲存表單 (新增 / 編輯)
+    goalForm.onsubmit = (e) => {
+      e.preventDefault();
+      const id = document.getElementById('goal-id').value;
+      const title = document.getElementById('goal-title-input').value.trim();
+      const category = document.getElementById('goal-category-input').value;
+      const note = document.getElementById('goal-note-input').value.trim();
+
+      if (!title) return;
+
+      if (id) {
+        // 更新 Existing Goal
+        const goal = state.goals.find(g => g.id === id);
+        if (goal) {
+          goal.title = title;
+          goal.category = category;
+          goal.note = note;
+        }
+      } else {
+        // 新增 Goal
+        state.goals.push({
+          id: Date.now().toString(),
+          title,
+          category,
+          note,
+          completedDates: []
+        });
+      }
+
+      saveState();
+      closeModal(goalModal);
+      renderUI();
+    };
+
+    // 刪除目標
+    deleteBtn.onclick = () => {
+      const id = document.getElementById('goal-id').value;
+      if (id) {
+        state.goals = state.goals.filter(g => g.id !== id);
+        saveState();
+        closeModal(goalModal);
+        renderUI();
+      }
+    };
+
+    document.getElementById('close-modal-btn').onclick = () => closeModal(goalModal);
+
+    // 反思手帳 Modal 操作
+    const journalModal = document.getElementById('journal-modal');
+    const journalInput = document.getElementById('journal-input');
+
+    function openJournalModal() {
+      const today = getTodayKey();
+      journalInput.value = state.journals[today] || '';
+      openModal(journalModal);
+    }
+
+    document.getElementById('open-journal-btn').onclick = openJournalModal;
+    document.getElementById('edit-journal-btn').onclick = openJournalModal;
+    document.getElementById('close-journal-modal-btn').onclick = () => closeModal(journalModal);
+
+    document.getElementById('save-journal-btn').onclick = () => {
+      const today = getTodayKey();
+      state.journals[today] = journalInput.value.trim();
+      saveState();
+      closeModal(journalModal);
+      renderUI();
+    };
+
+    // 通用 Modal 控制
+    function openModal(modal) {
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      const innerCard = modal.querySelector('div');
+      innerCard.classList.remove('translate-y-full');
+    }
+
+    function closeModal(modal) {
+      const innerCard = modal.querySelector('div');
+      innerCard.classList.add('translate-y-full');
+      setTimeout(() => {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+      }, 200);
+    }
+
+    // ==========================================
+    // 6. 主題切換 (Theme Toggle) 與系統適應
+    // ==========================================
+
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const themeIcon = document.getElementById('theme-icon');
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        updateThemeIcon('light');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        updateThemeIcon('dark');
+      }
+    }
+
+    function updateThemeIcon(mode) {
+      if (mode === 'light') {
+        // Sun Icon
+        themeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>`;
+      } else {
+        // Moon Icon
+        themeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
+      }
+    }
+
+    themeToggleBtn.onclick = () => {
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        localStorage.setItem('theme', 'light');
+        updateThemeIcon('light');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        localStorage.setItem('theme', 'dark');
+        updateThemeIcon('dark');
+      }
+    };
+
+    // 啟動初始化
+    initTheme();
+    renderUI();
+  </script>
+</body>
+</html>
